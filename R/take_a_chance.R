@@ -1,27 +1,39 @@
-take_a_chance_2 <- function(a_turn){
+#' Take a chance
+#'
+#' Simulate picking a Chance card from the Chance or Community Chest pile
+#' @param a_sub_turn a tibble detailing sub turn informtion, generated as part of take_turn()
+#' @examples
+#' \dontrun{
+#' take_a_chance(turn_1)
+#' }
+#' @export
+#' take_a_chance
 
-  if(a_turn$location %in% chance_locations){
+take_a_chance <- function(a_sub_turn){
 
-    card_type <- filter(chances, location == a_turn$location) %>%
-      pull(name)
+  if(a_sub_turn$location %in% chance_locations$location){
 
-    chance_outcomes <- chance_cards %>%
-      filter(id == sample(16, 1) & type == card_type) %>%
-      mutate(card = paste(type, card, sep =  " - "),
-             location = ifelse(str_detect(location, "x"),
-                               as.numeric(str_remove(location, "x")) + a_turn$location,
-                               as.numeric(location)),
-             jail = ifelse(location == 11, 1, NA)) %>%
-      select(card, location, jail)
+    card_type <- dplyr::filter(chance_locations, location == a_sub_turn$location) %>%
+      dplyr::pull(type)
 
-    a_turn %>%
-      mutate(location = ifelse(!is.na(chance_outcomes$location), chance_outcomes$location, location),
-             chance = chance_outcomes$card,
-             jail = ifelse(!is.na(chance_outcomes$jail), chance_outcomes$jail, jail))
+    chance_outcomes <- chances %>%
+      dplyr::filter(id == sample(16, 1) & type == card_type) %>%
+      dplyr::mutate(card = paste(type, card, sep =  " - "),
+                    location = ifelse(stringr::str_detect(location, "x"),
+                                      as.numeric(stringr::str_remove(location, "x")) + a_sub_turn$location,
+                                      as.numeric(location)),
+                    jail = ifelse(location == 11, 1, NA)) %>%
+      dplyr::select(card, location, jail)
+
+    a_sub_turn %>%
+      dplyr::mutate(location = ifelse(!is.na(chance_outcomes$location), chance_outcomes$location, location),
+                    chance = chance_outcomes$card,
+                    jail = ifelse(!is.na(chance_outcomes$jail), chance_outcomes$jail, jail)) %>%
+      floor_location()
 
   }else{
 
-    a_turn
+    a_sub_turn
 
   }
 
