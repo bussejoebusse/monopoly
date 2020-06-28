@@ -1,10 +1,9 @@
 set.seed(1)
 
-the <- simulate_game
+the <- simulate_game(turn_limit = 10000)
 
 summary <- the %>%
-  filter(turn_id !=0) %>%
-  right_join(board)
+  filter(turn_id !=0)
 
 cum_count <- function(x){
 
@@ -24,56 +23,60 @@ nurg <- tibble(location = rep(board$location, max(lsa$turn_id)),
                turn_id = sort(rep(unique(lsa$turn_id), length(board$location))))
 
 blurg <- left_join(nurg, lsa) %>%
+  left_join(board) %>%
   mutate(cum_count = ifelse(turn_id == 1 & is.na(cum_count), 0, cum_count)) %>%
   group_by(location) %>%
-  mutate(cum_count = zoo::na.locf(cum_count)) %>%
-  left_join(select(board, location, name)) %>%
-  select(turn_id, location, name, cum_count)
+  mutate(cum_count = zoo::na.locf(cum_count),
+         name = paste(location, name, sep = " - ")) %>%
+  select(turn_id, name, location, cum_count, type)
+
+levels_for_plot <- blurg %>%
+  select(location, name) %>%
+  unique() %>%
+  arrange(desc(location))
 
 for_plot <- blurg %>%
-  group_by(turn_id) %>%
-  arrange(turn_id, -cum_count) %>%
-  mutate(rank = 1:n()) %>%
-  filter(!name %in% c("Chance", "Community Chest", "Income Tax")) %>%
-  filter(turn_id %in% seq(1, 1000, 10))
+  filter(turn_id %in% c(1, seq(1000, 10000, 100))) %>%
+  mutate(name = factor(name, levels = levels_for_plot$name))
 
 for_plot %>%
-  ggplot() +
-  aes(xmin = 0 ,
-      xmax = cum_count) +
-  aes(ymin = rank - .45,
-      ymax = rank + .45,
-      y = rank) +
-  facet_wrap(~ turn_id) +
-  geom_rect(alpha = .7) +
-  geom_text(aes(label = name), hjust = "right", colour = "black", fontface = "bold", nudge_y = -100000)
-  scale_y_reverse() -> plot
+  ggplot(aes(name, cum_count, fill = type)) +
+  geom_bar(stat = "identity", alpha = 0.66) +
+  scale_fill_manual(values = c(board_colours$colours))+
+  labs(title='{closest_state}') +
+  coord_flip()+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))
 
+for_plot %>%
+  ggplot(aes(name, cum_count, fill = type)) +
+  geom_bar(stat = "identity", show.legend = FALSE, alpha = 0.66) +
+  scale_fill_manual(values = c(board_colours$colours))+
+  labs(title='Turns = {prettyNum(closest_state, big.mark = ",")}',
+       x = "", y = "") +
+  coord_flip()+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"),
+        legend.position = "none")+
+  transition_states(turn_id) -> p
 
-plot <- ggplot(for_plot, aes(reorder(name, rank), cum_count))+
-  geom_bar(stat = "identity")+
-  coord_flip() +
-  facet_wrap(~ turn_id)
+animate(p, detail = 8, end_pause = 50,
+        renderer = gifski_renderer("monopoly.gif"))
 
-plot+
-  facet_null()+
-  transition_time(turn_id)
+board_colours <- board %>%
+  select(type) %>%
+  unique() %>%
+  mutate(colours = hex)
 
-animate(anim, nframes = 100, fps = 100, end_pause = 30,
-        renderer = gifski_renderer("vis.gif"))
-
-ggplot(for_plot, aes(x = -rank,y = cum_count, group = name)) +
-  geom_tile(aes(y = cum_count / 2, height = cum_count), width = 0.9) +
-  geom_text(aes(label = name), hjust = "right", colour = "black", fontface = "bold", nudge_y = -100000) +
-  geom_text(aes(label = scales::comma(cum_count)), hjust = "left", nudge_y = 100000, colour = "grey30") +
-  coord_flip(clip="off") +
-  scale_x_discrete("") +
-  scale_y_continuous("",labels=scales::comma) +
-  theme(panel.grid.major.y=element_blank(),
-        panel.grid.minor.x=element_blank(),
-        legend.position = c(0.4, 0.2),
-        plot.margin = margin(1,1,1,2,"cm"),
-        axis.text.y=element_blank()) +
-  # gganimate code to transition by year:
-  transition_time(turn_id) +
-  ease_aes('cubic-in-out')
+hex <- c(rgb(205, 230, 208, maxColorValue = 256),
+         rgb(149, 84, 54, maxColorValue = 256),
+         rgb(9, 10, 14, maxColorValue = 256),
+         rgb(170, 224, 250, maxColorValue = 256),
+         rgb(217, 58, 150, maxColorValue = 256),
+         rgb(205, 230, 208, maxColorValue = 256),
+         rgb(247, 148, 29, maxColorValue = 256),
+         rgb(237, 27, 36, maxColorValue = 256),
+         rgb(254, 242, 0, maxColorValue = 256),
+         rgb(31, 178, 90, maxColorValue = 256),
+         rgb(0, 114, 187, maxColorValue = 256))
+hex
