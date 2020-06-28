@@ -12,11 +12,15 @@
 
 simulate_game <- function(players = 4, turn_limit = 1000){
 
+  pb <- progress::progress_bar$new(total = turn_limit)
+
   current <- set_up_game(players = players)
 
   repeat{
 
     current <- dplyr::bind_rows(current, take_turn(current))
+
+    pb$tick()
 
     if(max(current$turn_id) >= turn_limit){
 
