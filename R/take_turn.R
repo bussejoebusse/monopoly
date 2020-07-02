@@ -37,7 +37,9 @@ take_turn <- function(last_turn){
         dplyr::mutate(location = location + sum(roll_1),
                       jail = NA) %>%
         floor_location() %>%
-        take_a_chance()
+        take_a_chance() %>%
+        dplyr::mutate(location = ifelse(location == 31, 11, location),
+                      jail = ifelse(location == 31, 1, jail))
 
     }
 
@@ -52,7 +54,9 @@ take_turn <- function(last_turn){
                       location = location + sum(roll_2),
                       doubles = sum(duplicated(roll_2))) %>%
         floor_location() %>%
-        take_a_chance()
+        take_a_chance()%>%
+        dplyr::mutate(location = ifelse(location == 31, 11, location),
+                      jail = ifelse(location == 31, 1, jail))
 
       if(sum(duplicated(roll_2)) == 1 & !turn_1$jail %in% 1:3){
 
@@ -66,7 +70,9 @@ take_turn <- function(last_turn){
                         location = ifelse(doubles == 1, 11, location + sum(roll_3)),
                         jail = ifelse(doubles == 1, 0, jail)) %>%
           floor_location() %>%
-          take_a_chance()
+          take_a_chance()%>%
+          dplyr::mutate(location = ifelse(location == 31, 11, location),
+                        jail = ifelse(location == 31, 1, jail))
 
         dplyr::bind_rows(turn_1, turn_2, turn_3)
 
